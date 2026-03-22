@@ -1,0 +1,95 @@
+name: CI (self-hosted)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
+
+jobs:
+  run-modules:
+    runs-on: [self-hosted, linux]   # adjust labels to match your runner
+    strategy:
+      fail-fast: false
+      # Обмежуємо паралельність, щоб локальний агент не "задихнувся"
+      # і не переписував одні й ті самі файли одночасно
+      max-parallel: 1
+      matrix:
+        module: [data_load, data_quality_analysis, data_research, visualization]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Очищаємо залишки від попередніх запусків на self-hosted
+          clean: true
+
+      - name: Use system Python (self-hosted)
+        run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Гарантуємо наявність потрібних пакетів
+          pip install pandas openpyxl requests scikit-learn seaborn matplotlib
+
+      - name: Prepare environment
+        run: |
+          # Створюємо директорії для уникнення FileNotFoundError
+          mkdir -p data/raw
+          mkdir -p reports/lab1/figures
+          mkdir -p artifacts/${{ matrix.module }}
+
+      - name: Run module
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
+        run: |
+          echo "Processing module: ${{ matrix.module }}"
+          
+          # Навіть при послідовному виконанні гарантуємо, 
+          # що необхідні дані існують для поточного модуля
+          if [ "${{ matrix.module }}" != "data_load" ]; then
+            if [ ! -f "data/raw/nuclear_safety_q4_2025.xlsx" ]; then
+              echo "Pre-loading data..."
+              python src/data_load.py
+            fi
+          fi
+          
+          if [ "${{ matrix.module }}" == "data_research" ] || [ "${{ matrix.module }}" == "visualization" ]; then
+            if [ ! -f "data/raw/clean_data.csv" ]; then
+              echo "Pre-cleaning data..."
+              python src/data_quality_analysis.py
+            fi
+          fi
+
+          echo "Executing target: ${{ matrix.module }}..."
+          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/output.log 2>&1 || {
+            echo "Error log:"
+            cat artifacts/${{ matrix.module }}/output.log
+            exit 1
+          }
+
+      - name: Upload artifacts
+        if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}-selfhosted
+          path: |
+            artifacts/${{ matrix.module }}
+            reports/lab1/figures/*.png
+            data/raw/*.csv
