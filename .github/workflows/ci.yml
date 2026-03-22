@@ -22,7 +22,8 @@ on:
 jobs:
   run-modules:
     runs-on: ubuntu-latest
-
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +53,10 @@ jobs:
         run: |
           mkdir -p artifacts/${{ matrix.module }}
           echo "Running ${{ matrix.module }}"
-          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/output.log 2>&1
+          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/output.log 2>&1 || {
+            cat artifacts/${{ matrix.module }}/output.log
+            exit 1
+          }
 
       - name: Upload artifacts
         if: >
