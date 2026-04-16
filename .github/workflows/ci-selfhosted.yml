@@ -22,6 +22,9 @@ on:
 jobs:
   run-modules:
     runs-on: [self-hosted, Windows, X64]
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       # Обмежуємо паралельність, щоб локальний агент не "задихнувся"
