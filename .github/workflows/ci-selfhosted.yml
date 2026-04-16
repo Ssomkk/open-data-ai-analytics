@@ -22,13 +22,8 @@ on:
 jobs:
   run-modules:
     runs-on: [self-hosted, Windows, X64]
-    defaults:
-      run:
-        shell: bash
     strategy:
       fail-fast: false
-      # Обмежуємо паралельність, щоб локальний агент не "задихнувся"
-      # і не переписував одні й ті самі файли одночасно
       max-parallel: 1
       matrix:
         module: [data_load, data_quality_analysis, data_research, visualization]
@@ -37,7 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Очищаємо залишки від попередніх запусків на self-hosted
           clean: true
 
       - name: Use system Python (self-hosted)
@@ -48,42 +42,43 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # Гарантуємо наявність потрібних пакетів
+          if (Test-Path "requirements.txt") { pip install -r requirements.txt }
           pip install pandas openpyxl requests scikit-learn seaborn matplotlib
 
       - name: Prepare environment
         run: |
-          # Створюємо директорії для уникнення FileNotFoundError
-          mkdir -p data/raw
-          mkdir -p reports/lab1/figures
-          mkdir -p artifacts/${{ matrix.module }}
+          # В PowerShell -Force заміняє лінуксове -p (не падає, якщо папка вже є)
+          mkdir -Force data/raw
+          mkdir -Force reports/lab1/figures
+          mkdir -Force artifacts/${{ matrix.module }}
 
       - name: Run module
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
-          echo "Processing module: ${{ matrix.module }}"
+          Write-Host "Processing module: ${{ matrix.module }}"
           
-          # Навіть при послідовному виконанні гарантуємо, 
-          # що необхідні дані існують для поточного модуля
-          if [ "${{ matrix.module }}" != "data_load" ]; then
-            if [ ! -f "data/raw/nuclear_safety_q4_2025.xlsx" ]; then
-              echo "Pre-loading data..."
+          # PowerShell синтаксис умов
+          if ("${{ matrix.module }}" -ne "data_load") {
+            if (-Not (Test-Path "data/raw/nuclear_safety_q4_2025.xlsx")) {
+              Write-Host "Pre-loading data..."
               python src/data_load.py
-            fi
-          fi
+            }
+          }
           
-          if [ "${{ matrix.module }}" == "data_research" ] || [ "${{ matrix.module }}" == "visualization" ]; then
-            if [ ! -f "data/raw/clean_data.csv" ]; then
-              echo "Pre-cleaning data..."
+          if ("${{ matrix.module }}" -eq "data_research" -or "${{ matrix.module }}" -eq "visualization") {
+            if (-Not (Test-Path "data/raw/clean_data.csv")) {
+              Write-Host "Pre-cleaning data..."
               python src/data_quality_analysis.py
-            fi
-          fi
+            }
+          }
 
-          echo "Executing target: ${{ matrix.module }}..."
-          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/output.log 2>&1 || {
-            echo "Error log:"
-            cat artifacts/${{ matrix.module }}/output.log
+          Write-Host "Executing target: ${{ matrix.module }}..."
+          # *> це PowerShell-аналог лінуксового > ... 2>&1
+          python src/${{ matrix.module }}.py *> artifacts/${{ matrix.module }}/output.log
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error log:"
+            Get-Content artifacts/${{ matrix.module }}/output.log
             exit 1
           }
 
