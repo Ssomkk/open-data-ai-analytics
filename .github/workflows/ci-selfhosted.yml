@@ -21,7 +21,7 @@ on:
 
 jobs:
   run-modules:
-    runs-on: [self-hosted, linux]   # adjust labels to match your runner
+    runs-on: [self-hosted, Windows, X64]
     strategy:
       fail-fast: false
       # Обмежуємо паралельність, щоб локальний агент не "задихнувся"
