@@ -21,7 +21,7 @@ plt.ylabel('Обсяг викидів, ТБк')
 plt.legend()
 plt.grid(True)
 
-plt.savefig('../reports/figures/emission_dynamics.png')
+plt.savefig('reports/lab1/figures/emission_dynamics.png')
 plt.close()
 
 # ---- Boxplot ----
@@ -32,6 +32,6 @@ plt.title('Порівняння радіаційного фону по АЕС')
 plt.xticks(rotation=45)
 plt.tight_layout()
 
-plt.savefig('../reports/figures/irg_stations.png')
+plt.savefig('reports/lab1/figures/irg_stations.png')
 plt.close()
 

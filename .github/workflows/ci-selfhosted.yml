@@ -1,0 +1,93 @@
+name: CI (self-hosted)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
+
+jobs:
+  run-modules:
+    runs-on: [self-hosted, Windows, X64]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        module: [data_load, data_quality_analysis, data_research, visualization]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Use system Python (self-hosted)
+        run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path "requirements.txt") { pip install -r requirements.txt }
+          pip install pandas openpyxl requests scikit-learn seaborn matplotlib
+
+      - name: Prepare environment
+        run: |
+          # В PowerShell -Force заміняє лінуксове -p (не падає, якщо папка вже є)
+          mkdir -Force data/raw
+          mkdir -Force reports/lab1/figures
+          mkdir -Force artifacts/${{ matrix.module }}
+
+      - name: Run module
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
+        run: |
+          Write-Host "Processing module: ${{ matrix.module }}"
+          
+          # PowerShell синтаксис умов
+          if ("${{ matrix.module }}" -ne "data_load") {
+            if (-Not (Test-Path "data/raw/nuclear_safety_q4_2025.xlsx")) {
+              Write-Host "Pre-loading data..."
+              python src/data_load.py
+            }
+          }
+          
+          if ("${{ matrix.module }}" -eq "data_research" -or "${{ matrix.module }}" -eq "visualization") {
+            if (-Not (Test-Path "data/raw/clean_data.csv")) {
+              Write-Host "Pre-cleaning data..."
+              python src/data_quality_analysis.py
+            }
+          }
+
+          Write-Host "Executing target: ${{ matrix.module }}..."
+          # *> це PowerShell-аналог лінуксового > ... 2>&1
+          python src/${{ matrix.module }}.py *> artifacts/${{ matrix.module }}/output.log
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error log:"
+            Get-Content artifacts/${{ matrix.module }}/output.log
+            exit 1
+          }
+
+      - name: Upload artifacts
+        if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}-selfhosted
+          path: |
+            artifacts/${{ matrix.module }}
+            reports/lab1/figures/*.png
+            data/raw/*.csv
