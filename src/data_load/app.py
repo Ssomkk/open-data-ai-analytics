@@ -64,14 +64,14 @@ try:
         table_name = "nuclear_safety"
         df.to_sql(table_name, conn, if_exists='replace', index=False)
 
-        print(f"✓ Table '{table_name}' created with {len(df)} records")
-        print(f"✓ Columns: {list(df.columns)}")
+        print(f"Table '{table_name}' created with {len(df)} records")
+        print(f"Columns: {list(df.columns)}")
 
         conn.close()
-        print(f"✓ Database saved to {DB_PATH}")
+        print(f"Database saved to {DB_PATH}")
     else:
         print(f"Warning: {xlsx_path} not found. Cannot create database.")
 except Exception as e:
-    print(f"✗ Error creating database: {e}")
+    print(f"Error creating database: {e}")
 
 print("\n[data_load] Done.")

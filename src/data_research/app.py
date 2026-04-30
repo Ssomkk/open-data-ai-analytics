@@ -73,7 +73,7 @@ for j in range(i + 1, len(axes)):
 plt.tight_layout()
 plt.savefig(os.path.join(FIGURES_DIR, 'data_distributions.png'))
 plt.close()
-print("✓ data_distributions.png")
+print("data_distributions.png")
 
 # Avg cs-137 emission by year
 avg_cs137 = df.groupby('year')['cs_137_emission'].mean()
@@ -82,7 +82,7 @@ plt.plot(avg_cs137)
 plt.title('Average cs_137_emission by year')
 plt.savefig(os.path.join(FIGURES_DIR, 'cs_137_emission_by_year.png'))
 plt.close()
-print("✓ cs_137_emission_by_year.png")
+print("cs_137_emission_by_year.png")
 
 # Avg co-60 emission by year
 avg_co60 = df.groupby('year')['co_60_ emission'].mean()
@@ -91,7 +91,7 @@ plt.plot(avg_co60)
 plt.title('Average co_60_emission by year')
 plt.savefig(os.path.join(FIGURES_DIR, 'co_60_emission_by_year.png'))
 plt.close()
-print("✓ co_60_emission_by_year.png")
+print("co_60_emission_by_year.png")
 
 # IRG by station
 station_irg = df.groupby('station')['irg'].mean()
@@ -101,7 +101,7 @@ plt.figure()
 plt.bar(stations, station_irg)
 plt.savefig(os.path.join(FIGURES_DIR, 'avg_irg_by_station.png'))
 plt.close()
-print("✓ avg_irg_by_station.png")
+print("avg_irg_by_station.png")
 
 # IRG index by station
 station_irg_indx = df.groupby('station')['irg_index'].mean()
@@ -110,7 +110,7 @@ plt.figure()
 plt.bar(stations, station_irg_indx)
 plt.savefig(os.path.join(FIGURES_DIR, 'avg_irg_indx_by_station.png'))
 plt.close()
-print("✓ avg_irg_indx_by_station.png")
+print("avg_irg_indx_by_station.png")
 
 # Scatter plots
 plt.figure()
@@ -118,21 +118,21 @@ plt.scatter(df['cs_137_dump'], df['volume'])
 plt.title('cs_137_dump vs volume')
 plt.savefig(os.path.join(FIGURES_DIR, 'cs137_dump_vs_volume.png'))
 plt.close()
-print("✓ cs137_dump_vs_volume.png")
+print("cs137_dump_vs_volume.png")
 
 plt.figure()
 plt.scatter(df['co_60_dump'], df['volume'])
 plt.title('co_60_dump vs volume')
 plt.savefig(os.path.join(FIGURES_DIR, 'co60_dump_vs_volume.png'))
 plt.close()
-print("✓ co60_dump_vs_volume.png")
+print("co60_dump_vs_volume.png")
 
 plt.figure()
 plt.scatter(df['cs_137_dump'], df['cs_137_emission'])
 plt.title('cs_137_dump vs cs_137_emission')
 plt.savefig(os.path.join(FIGURES_DIR, 'cs137_dump_vs_emission.png'))
 plt.close()
-print("✓ cs137_dump_vs_emission.png")
+print("cs137_dump_vs_emission.png")
 
 # Filtered scatter (specific station)
 mask = df['station'] == 'ХАЕС'
@@ -142,7 +142,7 @@ plt.scatter(df.loc[mask, 'co_60_ emission'], df.loc[mask, 'irg'])
 plt.title('co_60_emission vs irg (ХАЕС only)')
 plt.savefig(os.path.join(FIGURES_DIR, 'co60_vs_irg_haes.png'))
 plt.close()
-print("✓ co60_vs_irg_haes.png")
+print("co60_vs_irg_haes.png")
 
 # PCA
 df_scaled = df.drop(['station'], axis=1)
@@ -160,7 +160,7 @@ plt.scatter(df_pca[:, 0], df_pca[:, 1])
 plt.title('PCA (first 2 components)')
 plt.savefig(os.path.join(FIGURES_DIR, 'pca_2d.png'))
 plt.close()
-print("✓ pca_2d.png")
+print("pca_2d.png")
 
 # Correlation heatmap
 df_corr = df.drop(['station'], axis=1)

@@ -52,7 +52,7 @@ plt.grid(True)
 
 plt.savefig(os.path.join(FIGURES_DIR, 'emission_dynamics.png'))
 plt.close()
-print("✓ emission_dynamics.png")
+print("emission_dynamics.png")
 
 # ---- Boxplot ----
 plt.figure(figsize=(10, 6))
@@ -64,7 +64,7 @@ plt.tight_layout()
 
 plt.savefig(os.path.join(FIGURES_DIR, 'irg_stations.png'))
 plt.close()
-print("✓ irg_stations.png")
+print("irg_stations.png")
 
 # ── Generate Visualization Report ──────────────────────────────────────────────
 print(f"\n[visualization] Generating visualization report...")
@@ -104,7 +104,7 @@ viz_report = {
 with open(VIZ_REPORT, 'w', encoding='utf-8') as f:
     json.dump(viz_report, f, indent=2, ensure_ascii=False)
 
-print(f"✓ Visualization report saved to: {VIZ_REPORT}")
+print(f"Visualization report saved to: {VIZ_REPORT}")
 print(f"\nVisualization Summary:")
 print(f"  - Charts generated: {len(viz_report['charts'])}")
 print(f"  - Files: {viz_report['files_generated']}")
