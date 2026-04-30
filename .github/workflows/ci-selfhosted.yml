@@ -63,7 +63,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:DATA_DIR
           New-Item -ItemType Directory -Force -Path $env:REPORTS_DIR
           New-Item -ItemType Directory -Force -Path (Join-Path $env:REPORTS_DIR "figures")
-          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.module }}"
 
       - name: Run module
         shell: powershell
@@ -72,7 +71,6 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $SelectedModule = "${{ matrix.module }}"
-          $ArtifactDir = "artifacts/$SelectedModule"
           $RawXlsxPath = Join-Path $env:DATA_DIR "nuclear_safety_q4_2025.xlsx"
           $CleanCsvPath = Join-Path $env:DATA_DIR "clean_data.csv"
 
@@ -85,21 +83,13 @@ jobs:
               [string]$ScriptPath
             )
 
-            $LogPath = Join-Path $ArtifactDir "$ModuleName.log"
-
             Write-Host "Running $ModuleName from $ScriptPath"
 
-            python $ScriptPath *> $LogPath
+            python $ScriptPath
             $ExitCode = $LASTEXITCODE
 
             if ($ExitCode -ne 0) {
               Write-Host "Error while running $ModuleName"
-              Write-Host "Log file: $LogPath"
-
-              if (Test-Path -Path $LogPath) {
-                Get-Content -Path $LogPath
-              }
-
               exit $ExitCode
             }
           }
@@ -141,10 +131,9 @@ jobs:
         if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.module }}-selfhosted
+          name: outputs-${{ matrix.module }}-selfhosted
           if-no-files-found: warn
           path: |
-            artifacts/${{ matrix.module }}
             data/raw/*.xlsx
             data/raw/*.csv
             data/*.db
