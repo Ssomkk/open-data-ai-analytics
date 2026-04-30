@@ -1,6 +1,23 @@
+import os
 import pandas as pd
 
-df = pd.read_excel('../data/raw/nuclear_safety_q4_2025.xlsx')
+# ── Paths: read from env vars (set by Docker), fall back to local relative paths ──
+_HERE    = os.path.dirname(os.path.abspath(__file__))
+_PROJECT = os.path.dirname(_HERE)
+
+def _resolve(env_var: str, local_fallback: str) -> str:
+    val = os.environ.get(env_var, "")
+    if val and os.path.exists(val):
+        return val
+    return local_fallback
+
+DATA_DIR = _resolve("DATA_DIR", os.path.join(_PROJECT, "data", "raw"))
+
+RAW_XLSX   = os.path.join(DATA_DIR, "nuclear_safety_q4_2025.xlsx")
+CLEAN_CSV  = os.path.join(DATA_DIR, "clean_data.csv")
+
+print(f"Reading from: {RAW_XLSX}")
+df = pd.read_excel(RAW_XLSX)
 
 print(df.head())
 print('df.shape ', df.shape)
@@ -36,4 +53,6 @@ print(df.describe())
 print('nulls')
 print(df.isna().sum())
 
-df.to_csv('../data/raw/clean_data.csv')
+print(f"Saving clean data to: {CLEAN_CSV}")
+df.to_csv(CLEAN_CSV, index=False)
+print("Done.")

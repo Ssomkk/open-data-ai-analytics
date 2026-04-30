@@ -1,11 +1,30 @@
+import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
 plt.style.use('default')
 
+# ── Paths ─────────────────────────────────────────────────────────────────────
+_HERE    = os.path.dirname(os.path.abspath(__file__))
+_PROJECT = os.path.dirname(_HERE)
+
+def _resolve(env_var: str, local_fallback: str) -> str:
+    val = os.environ.get(env_var, "")
+    if val and os.path.exists(val):
+        return val
+    return local_fallback
+
+DATA_DIR    = _resolve("DATA_DIR",    os.path.join(_PROJECT, "data", "raw"))
+REPORTS_DIR = _resolve("REPORTS_DIR", os.path.join(_PROJECT, "reports", "lab1"))
+FIGURES_DIR = os.path.join(REPORTS_DIR, "figures")
+os.makedirs(FIGURES_DIR, exist_ok=True)
+
+CLEAN_CSV = os.path.join(DATA_DIR, "clean_data.csv")
+print(f"Reading: {CLEAN_CSV}")
+
 # Load data
-df = pd.read_csv('../data/raw/clean_data.csv')
+df = pd.read_csv(CLEAN_CSV)
 
 # ---- Fix 1: aggregate by year (otherwise plot is noisy and wrong) ----
 yearly = df.groupby('year')[['cs_137_emission', 'co_60_ emission']].mean().reset_index()
