@@ -41,44 +41,112 @@ jobs:
           clean: true
 
       - name: Use system Python
+        shell: powershell
         run: |
           python --version
           pip --version
 
       - name: Install dependencies
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") { pip install -r requirements.txt }
+
+          if (Test-Path -Path "requirements.txt") {
+            pip install -r requirements.txt
+          }
+
           pip install pandas openpyxl requests scikit-learn seaborn matplotlib flask
 
       - name: Prepare environment
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path $env:DATA_DIR
-          New-Item -ItemType Directory -Force -Path "$env:REPORTS_DIR/figures"
+          New-Item -ItemType Directory -Force -Path $env:REPORTS_DIR
+          New-Item -ItemType Directory -Force -Path (Join-Path $env:REPORTS_DIR "figures")
           New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.module }}"
 
       - name: Run module
+        shell: powershell
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
-          function Invoke-Module {
+          $ErrorActionPreference = "Stop"
+
+          $SelectedModule = "${{ matrix.module }}"
+          $ArtifactDir = "artifacts/$SelectedModule"
+          $RawXlsxPath = Join-Path $env:DATA_DIR "nuclear_safety_q4_2025.xlsx"
+          $CleanCsvPath = Join-Path $env:DATA_DIR "clean_data.csv"
+
+          function Invoke-ProjectModule {
             param (
+              [Parameter(Mandatory = $true)]
               [string]$ModuleName,
+
+              [Parameter(Mandatory = $true)]
               [string]$ScriptPath
             )
 
-            $LogPath = "artifacts/${{ matrix.module }}/$ModuleName.log"
+            $LogPath = Join-Path $ArtifactDir "$ModuleName.log"
 
-            Write-Host "Running $ModuleName`: $ScriptPath"
+            Write-Host "Running $ModuleName from $ScriptPath"
+
             python $ScriptPath *> $LogPath
+            $ExitCode = $LASTEXITCODE
 
-            if ($LASTEXITCODE -ne 0) {
+            if ($ExitCode -ne 0) {
               Write-Host "Error while running $ModuleName"
-              Get-Content $LogPath
-              exit 1
+              Write-Host "Log file: $LogPath"
+
+              if (Test-Path -Path $LogPath) {
+                Get-Content -Path $LogPath
+              }
+
+              exit $ExitCode
             }
           }
 
-          Write-Host "Processing module: ${{ matrix.module }}"
+          Write-Host "Processing module: $SelectedModule"
 
-          if ("${{ matrix.module }}" -ne "data_load") {
-            if (-Not (Test-Path "$env:DATA_DIR/nuclear
+          if ($SelectedModule -ne "data_load") {
+            if (-not (Test-Path -Path $RawXlsxPath)) {
+              Write-Host "Pre-loading data..."
+              Invoke-ProjectModule -ModuleName "preload_data" -ScriptPath "src/data_load/app.py"
+            }
+          }
+
+          if ($SelectedModule -eq "data_research" -or $SelectedModule -eq "visualization") {
+            if (-not (Test-Path -Path $CleanCsvPath)) {
+              Write-Host "Pre-cleaning data..."
+              Invoke-ProjectModule -ModuleName "preclean_data" -ScriptPath "src/data_quality_analysis/app.py"
+            }
+          }
+
+          if ($SelectedModule -eq "data_load") {
+            Invoke-ProjectModule -ModuleName "data_load" -ScriptPath "src/data_load/app.py"
+          }
+          elseif ($SelectedModule -eq "data_quality_analysis") {
+            Invoke-ProjectModule -ModuleName "data_quality_analysis" -ScriptPath "src/data_quality_analysis/app.py"
+          }
+          elseif ($SelectedModule -eq "data_research") {
+            Invoke-ProjectModule -ModuleName "data_research" -ScriptPath "src/data_research/app.py"
+          }
+          elseif ($SelectedModule -eq "visualization") {
+            Invoke-ProjectModule -ModuleName "visualization" -ScriptPath "src/visualization/app.py"
+          }
+          else {
+            Write-Host "Unknown module: $SelectedModule"
+            exit 1
+          }
+
+      - name: Upload artifacts
+        if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}-selfhosted
+          if-no-files-found: warn
+          path: |
+            artifacts/${{ matrix.module }}
+            data/raw/*.xlsx
+            data/raw/*.csv
+            data/*.db
+            reports/lab1/*.json
+            reports/lab1/figures/*.png
