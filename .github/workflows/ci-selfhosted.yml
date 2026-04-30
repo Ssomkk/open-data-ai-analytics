@@ -34,7 +34,7 @@ jobs:
         with:
           clean: true
 
-      - name: Use system Python (self-hosted)
+      - name: Use system Python
         run: |
           python --version
           pip --version
@@ -47,7 +47,6 @@ jobs:
 
       - name: Prepare environment
         run: |
-          # В PowerShell -Force заміняє лінуксове -p (не падає, якщо папка вже є)
           mkdir -Force data/raw
           mkdir -Force reports/lab1/figures
           mkdir -Force artifacts/${{ matrix.module }}
@@ -56,26 +55,40 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
           Write-Host "Processing module: ${{ matrix.module }}"
-          
-          # PowerShell синтаксис умов
+
           if ("${{ matrix.module }}" -ne "data_load") {
             if (-Not (Test-Path "data/raw/nuclear_safety_q4_2025.xlsx")) {
               Write-Host "Pre-loading data..."
-              python src/data_load.py
+              python data_load/app.py
             }
           }
-          
+
           if ("${{ matrix.module }}" -eq "data_research" -or "${{ matrix.module }}" -eq "visualization") {
             if (-Not (Test-Path "data/raw/clean_data.csv")) {
               Write-Host "Pre-cleaning data..."
-              python src/data_quality_analysis.py
+              python data_quality_analysis/app.py
             }
           }
 
           Write-Host "Executing target: ${{ matrix.module }}..."
-          # *> це PowerShell-аналог лінуксового > ... 2>&1
-          python src/${{ matrix.module }}.py *> artifacts/${{ matrix.module }}/output.log
-          
+
+          if ("${{ matrix.module }}" -eq "data_load") {
+            python data_load/app.py *> artifacts/${{ matrix.module }}/output.log
+          }
+          elseif ("${{ matrix.module }}" -eq "data_quality_analysis") {
+            python data_quality_analysis/app.py *> artifacts/${{ matrix.module }}/output.log
+          }
+          elseif ("${{ matrix.module }}" -eq "data_research") {
+            python data_research/app.py *> artifacts/${{ matrix.module }}/output.log
+          }
+          elseif ("${{ matrix.module }}" -eq "visualization") {
+            python visualization/app.py *> artifacts/${{ matrix.module }}/output.log
+          }
+          else {
+            Write-Host "Unknown module: ${{ matrix.module }}"
+            exit 1
+          }
+
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Error log:"
             Get-Content artifacts/${{ matrix.module }}/output.log
@@ -87,7 +100,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.module }}-selfhosted
+          if-no-files-found: warn
           path: |
             artifacts/${{ matrix.module }}
             reports/lab1/figures/*.png
             data/raw/*.csv
+            data/*.db

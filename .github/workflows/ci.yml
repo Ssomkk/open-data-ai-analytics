@@ -22,8 +22,6 @@ on:
 jobs:
   run-modules:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: false
       matrix:
@@ -43,12 +41,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # Встановлення необхідних бібліотек для роботи з Excel та графіками
           pip install pandas openpyxl requests scikit-learn seaborn matplotlib
 
       - name: Prepare environment
         run: |
-          # Створення необхідних папок перед запуском скриптів
           mkdir -p data/raw
           mkdir -p reports/lab1/figures
           mkdir -p artifacts/${{ matrix.module }}
@@ -57,34 +53,52 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
           echo "Processing module: ${{ matrix.module }}"
-          
-          # Оскільки кожен job у матриці ізольований, забезпечуємо наявність даних:
-          # Якщо це не data_load, спочатку завантажуємо дані
+
           if [ "${{ matrix.module }}" != "data_load" ]; then
             echo "Pre-loading data..."
-            python src/data_load.py
-          fi
-          
-          # Якщо це аналіз або візуалізація, забезпечуємо наявність чистих даних
-          if [ "${{ matrix.module }}" == "data_research" ] || [ "${{ matrix.module }}" == "visualization" ]; then
-            echo "Pre-cleaning data..."
-            python src/data_quality_analysis.py
+            python data_load/app.py
           fi
 
-          # Запуск цільового модуля
+          if [ "${{ matrix.module }}" = "data_research" ] || [ "${{ matrix.module }}" = "visualization" ]; then
+            echo "Pre-cleaning data..."
+            python data_quality_analysis/app.py
+          fi
+
           echo "Executing ${{ matrix.module }}..."
-          python src/${{ matrix.module }}.py > artifacts/${{ matrix.module }}/output.log 2>&1 || {
+
+          case "${{ matrix.module }}" in
+            data_load)
+              python data_load/app.py > artifacts/${{ matrix.module }}/output.log 2>&1
+              ;;
+            data_quality_analysis)
+              python data_quality_analysis/app.py > artifacts/${{ matrix.module }}/output.log 2>&1
+              ;;
+            data_research)
+              python data_research/app.py > artifacts/${{ matrix.module }}/output.log 2>&1
+              ;;
+            visualization)
+              python visualization/app.py > artifacts/${{ matrix.module }}/output.log 2>&1
+              ;;
+            *)
+              echo "Unknown module: ${{ matrix.module }}" > artifacts/${{ matrix.module }}/output.log
+              exit 1
+              ;;
+          esac
+
+          if [ $? -ne 0 ]; then
             echo "Error details:"
             cat artifacts/${{ matrix.module }}/output.log
             exit 1
-          }
+          fi
 
       - name: Upload artifacts
         if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.module }}
+          if-no-files-found: warn
           path: |
             artifacts/${{ matrix.module }}
             reports/lab1/figures/*.png
             data/raw/*.csv
+            data/*.db

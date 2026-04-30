@@ -9,4 +9,4 @@ data/raw
 
 db/nuclear_safety.db
 
-identifier.sqlite
+db/identifier.sqlite
