@@ -22,11 +22,17 @@ on:
 jobs:
   run-modules:
     runs-on: [self-hosted, Windows, X64]
+
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         module: [data_load, data_quality_analysis, data_research, visualization]
+
+    env:
+      DATA_DIR: data/raw
+      DB_PATH: data/nuclear_safety.db
+      REPORTS_DIR: reports/lab1
 
     steps:
       - name: Checkout
@@ -43,66 +49,36 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if (Test-Path "requirements.txt") { pip install -r requirements.txt }
-          pip install pandas openpyxl requests scikit-learn seaborn matplotlib
+          pip install pandas openpyxl requests scikit-learn seaborn matplotlib flask
 
       - name: Prepare environment
         run: |
-          mkdir -Force data/raw
-          mkdir -Force reports/lab1/figures
-          mkdir -Force artifacts/${{ matrix.module }}
+          New-Item -ItemType Directory -Force -Path $env:DATA_DIR
+          New-Item -ItemType Directory -Force -Path "$env:REPORTS_DIR/figures"
+          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.module }}"
 
       - name: Run module
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
+          function Invoke-Module {
+            param (
+              [string]$ModuleName,
+              [string]$ScriptPath
+            )
+
+            $LogPath = "artifacts/${{ matrix.module }}/$ModuleName.log"
+
+            Write-Host "Running $ModuleName`: $ScriptPath"
+            python $ScriptPath *> $LogPath
+
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Error while running $ModuleName"
+              Get-Content $LogPath
+              exit 1
+            }
+          }
+
           Write-Host "Processing module: ${{ matrix.module }}"
 
           if ("${{ matrix.module }}" -ne "data_load") {
-            if (-Not (Test-Path "data/raw/nuclear_safety_q4_2025.xlsx")) {
-              Write-Host "Pre-loading data..."
-              python data_load/app.py
-            }
-          }
-
-          if ("${{ matrix.module }}" -eq "data_research" -or "${{ matrix.module }}" -eq "visualization") {
-            if (-Not (Test-Path "data/raw/clean_data.csv")) {
-              Write-Host "Pre-cleaning data..."
-              python data_quality_analysis/app.py
-            }
-          }
-
-          Write-Host "Executing target: ${{ matrix.module }}..."
-
-          if ("${{ matrix.module }}" -eq "data_load") {
-            python data_load/app.py *> artifacts/${{ matrix.module }}/output.log
-          }
-          elseif ("${{ matrix.module }}" -eq "data_quality_analysis") {
-            python data_quality_analysis/app.py *> artifacts/${{ matrix.module }}/output.log
-          }
-          elseif ("${{ matrix.module }}" -eq "data_research") {
-            python data_research/app.py *> artifacts/${{ matrix.module }}/output.log
-          }
-          elseif ("${{ matrix.module }}" -eq "visualization") {
-            python visualization/app.py *> artifacts/${{ matrix.module }}/output.log
-          }
-          else {
-            Write-Host "Unknown module: ${{ matrix.module }}"
-            exit 1
-          }
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error log:"
-            Get-Content artifacts/${{ matrix.module }}/output.log
-            exit 1
-          }
-
-      - name: Upload artifacts
-        if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-${{ matrix.module }}-selfhosted
-          if-no-files-found: warn
-          path: |
-            artifacts/${{ matrix.module }}
-            reports/lab1/figures/*.png
-            data/raw/*.csv
-            data/*.db
+            if (-Not (Test-Path "$env:DATA_DIR/nuclear
