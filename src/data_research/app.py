@@ -172,7 +172,7 @@ plt.title('Correlation Matrix Heatmap')
 plt.tight_layout()
 plt.savefig(os.path.join(FIGURES_DIR, 'correlation_matrix.png'))
 plt.close()
-print("✓ correlation_matrix.png")
+print("correlation_matrix.png")
 
 # ── Generate Research Report ──────────────────────────────────────────────────
 print(f"\n[data_research] Generating research report...")
@@ -250,7 +250,7 @@ research_report = {
 with open(RESEARCH_REPORT, 'w', encoding='utf-8') as f:
     json.dump(research_report, f, indent=2, ensure_ascii=False)
 
-print(f"✓ Research report saved to: {RESEARCH_REPORT}")
+print(f"Research report saved to: {RESEARCH_REPORT}")
 print(f"\nResearch Summary:")
 print(f"  - Total rows: {research_report['summary']['total_rows']}")
 print(f"  - Total columns: {research_report['summary']['total_columns']}")

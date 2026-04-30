@@ -62,7 +62,7 @@ print(f"\nNull values:\n{df.isna().sum()}")
 
 print(f"\nSaving clean data to: {CLEAN_CSV}")
 df.to_csv(CLEAN_CSV, index=False)
-print("✓ CSV saved")
+print("CSV saved")
 
 # ── Generate Quality Report ────────────────────────────────────────────────────
 print(f"\nGenerating quality report...")
@@ -86,7 +86,7 @@ quality_report = {
 with open(QUALITY_REPORT, 'w', encoding='utf-8') as f:
     json.dump(quality_report, f, indent=2, ensure_ascii=False)
 
-print(f"✓ Quality report saved to: {QUALITY_REPORT}")
+print(f"Quality report saved to: {QUALITY_REPORT}")
 print(f"\nQuality Summary:")
 print(f"  - Total rows: {quality_report['rows']}")
 print(f"  - Total columns: {quality_report['columns']}")
