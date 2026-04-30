@@ -5,7 +5,7 @@ services:
   # ── 1. Data download & SQLite DB creation ───────────────────────────────────
   data_load:
     build:
-      context: ./data_load
+      context: src/data_load
     container_name: data_load
     env_file: .env
     environment:
@@ -19,7 +19,7 @@ services:
   # ── 2. Data quality & cleaning ───────────────────────────────────────────────
   data_quality:
     build:
-      context: ./data_quality_analysis
+      context: src/data_quality_analysis
     container_name: data_quality
     env_file: .env
     environment:
@@ -37,7 +37,7 @@ services:
   # ── 3. Exploratory data research ─────────────────────────────────────────────
   data_research:
     build:
-      context: ./data_research
+      context: src/data_research
     container_name: data_research
     env_file: .env
     environment:
@@ -55,7 +55,7 @@ services:
   # ── 4. Visualization (charts) ─────────────────────────────────────────────
   visualization:
     build:
-      context: ./visualization
+      context: src/visualization
     container_name: visualization
     env_file: .env
     environment:
@@ -73,7 +73,7 @@ services:
   # ── 5. Web interface ──────────────────────────────────────────────────────────
   web:
     build:
-      context: ./web
+      context: src/web
     container_name: web
     env_file: .env
     environment:
