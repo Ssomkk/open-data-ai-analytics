@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+
+  # ── 1. Data download & SQLite DB creation ───────────────────────────────────
+  data_load:
+    build:
+      context: src/data_load
+    container_name: data_load
+    env_file: .env
+    environment:
+      DATA_DIR: ${DATA_DIR}
+      DB_PATH: ${DB_PATH}
+    volumes:
+      - shared_data:/app/data
+    networks:
+      - open_data_analytics_network
+
+  # ── 2. Data quality & cleaning ───────────────────────────────────────────────
+  data_quality:
+    build:
+      context: src/data_quality_analysis
+    container_name: data_quality
+    env_file: .env
+    environment:
+      DATA_DIR: ${DATA_DIR}
+      REPORTS_DIR: ${REPORTS_DIR}
+    volumes:
+      - shared_data:/app/data
+      - shared_reports:/app/reports
+    depends_on:
+      data_load:
+        condition: service_completed_successfully
+    networks:
+      - open_data_analytics_network
+
+  # ── 3. Exploratory data research ─────────────────────────────────────────────
+  data_research:
+    build:
+      context: src/data_research
+    container_name: data_research
+    env_file: .env
+    environment:
+      DATA_DIR: ${DATA_DIR}
+      REPORTS_DIR: ${REPORTS_DIR}
+    volumes:
+      - shared_data:/app/data
+      - shared_reports:/app/reports
+    depends_on:
+      data_quality:
+        condition: service_completed_successfully
+    networks:
+      - open_data_analytics_network
+
+  # ── 4. Visualization (charts) ─────────────────────────────────────────────
+  visualization:
+    build:
+      context: src/visualization
+    container_name: visualization
+    env_file: .env
+    environment:
+      DATA_DIR: ${DATA_DIR}
+      REPORTS_DIR: ${REPORTS_DIR}
+    volumes:
+      - shared_data:/app/data
+      - shared_reports:/app/reports
+    depends_on:
+      data_quality:
+        condition: service_completed_successfully
+    networks:
+      - open_data_analytics_network
+
+  # ── 5. Web interface ──────────────────────────────────────────────────────────
+  web:
+    build:
+      context: src/web
+    container_name: web
+    env_file: .env
+    environment:
+      DATA_DIR: ${DATA_DIR}
+      REPORTS_DIR: ${REPORTS_DIR}
+      DB_PATH: ${DB_PATH}
+      PORT: ${PORT}
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - shared_data:/app/data:ro
+      - shared_reports:/app/reports:ro
+    depends_on:
+      data_research:
+        condition: service_completed_successfully
+      visualization:
+        condition: service_completed_successfully
+    networks:
+      - open_data_analytics_network
+    restart: unless-stopped
+
+# ── Shared volumes ─────────────────────────────────────────────────────────────
+volumes:
+  shared_data: # raw XLSX, clean CSV, SQLite DB
+  shared_reports:
+    # quality_report.json, research_report.json, figures/
+
+    # ── Internal network ───────────────────────────────────────────────────────────
+networks:
+  open_data_analytics_network:
+    driver: bridge

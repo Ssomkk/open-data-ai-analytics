@@ -22,11 +22,17 @@ on:
 jobs:
   run-modules:
     runs-on: [self-hosted, Windows, X64]
+
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         module: [data_load, data_quality_analysis, data_research, visualization]
+
+    env:
+      DATA_DIR: data/raw
+      DB_PATH: data/nuclear_safety.db
+      REPORTS_DIR: reports/lab1
 
     steps:
       - name: Checkout
@@ -34,51 +40,90 @@ jobs:
         with:
           clean: true
 
-      - name: Use system Python (self-hosted)
+      - name: Use system Python
+        shell: powershell
         run: |
           python --version
           pip --version
 
       - name: Install dependencies
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") { pip install -r requirements.txt }
-          pip install pandas openpyxl requests scikit-learn seaborn matplotlib
+
+          if (Test-Path -Path "requirements.txt") {
+            pip install -r requirements.txt
+          }
+
+          pip install pandas openpyxl requests scikit-learn seaborn matplotlib flask
 
       - name: Prepare environment
+        shell: powershell
         run: |
-          # В PowerShell -Force заміняє лінуксове -p (не падає, якщо папка вже є)
-          mkdir -Force data/raw
-          mkdir -Force reports/lab1/figures
-          mkdir -Force artifacts/${{ matrix.module }}
+          New-Item -ItemType Directory -Force -Path $env:DATA_DIR
+          New-Item -ItemType Directory -Force -Path $env:REPORTS_DIR
+          New-Item -ItemType Directory -Force -Path (Join-Path $env:REPORTS_DIR "figures")
 
       - name: Run module
+        shell: powershell
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module }}
         run: |
-          Write-Host "Processing module: ${{ matrix.module }}"
-          
-          # PowerShell синтаксис умов
-          if ("${{ matrix.module }}" -ne "data_load") {
-            if (-Not (Test-Path "data/raw/nuclear_safety_q4_2025.xlsx")) {
-              Write-Host "Pre-loading data..."
-              python src/data_load.py
-            }
-          }
-          
-          if ("${{ matrix.module }}" -eq "data_research" -or "${{ matrix.module }}" -eq "visualization") {
-            if (-Not (Test-Path "data/raw/clean_data.csv")) {
-              Write-Host "Pre-cleaning data..."
-              python src/data_quality_analysis.py
+          $ErrorActionPreference = "Stop"
+
+          $SelectedModule = "${{ matrix.module }}"
+          $RawXlsxPath = Join-Path $env:DATA_DIR "nuclear_safety_q4_2025.xlsx"
+          $CleanCsvPath = Join-Path $env:DATA_DIR "clean_data.csv"
+
+          function Invoke-ProjectModule {
+            param (
+              [Parameter(Mandatory = $true)]
+              [string]$ModuleName,
+
+              [Parameter(Mandatory = $true)]
+              [string]$ScriptPath
+            )
+
+            Write-Host "Running $ModuleName from $ScriptPath"
+
+            python $ScriptPath
+            $ExitCode = $LASTEXITCODE
+
+            if ($ExitCode -ne 0) {
+              Write-Host "Error while running $ModuleName"
+              exit $ExitCode
             }
           }
 
-          Write-Host "Executing target: ${{ matrix.module }}..."
-          # *> це PowerShell-аналог лінуксового > ... 2>&1
-          python src/${{ matrix.module }}.py *> artifacts/${{ matrix.module }}/output.log
-          
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error log:"
-            Get-Content artifacts/${{ matrix.module }}/output.log
+          Write-Host "Processing module: $SelectedModule"
+
+          if ($SelectedModule -ne "data_load") {
+            if (-not (Test-Path -Path $RawXlsxPath)) {
+              Write-Host "Pre-loading data..."
+              Invoke-ProjectModule -ModuleName "preload_data" -ScriptPath "src/data_load/app.py"
+            }
+          }
+
+          if ($SelectedModule -eq "data_research" -or $SelectedModule -eq "visualization") {
+            if (-not (Test-Path -Path $CleanCsvPath)) {
+              Write-Host "Pre-cleaning data..."
+              Invoke-ProjectModule -ModuleName "preclean_data" -ScriptPath "src/data_quality_analysis/app.py"
+            }
+          }
+
+          if ($SelectedModule -eq "data_load") {
+            Invoke-ProjectModule -ModuleName "data_load" -ScriptPath "src/data_load/app.py"
+          }
+          elseif ($SelectedModule -eq "data_quality_analysis") {
+            Invoke-ProjectModule -ModuleName "data_quality_analysis" -ScriptPath "src/data_quality_analysis/app.py"
+          }
+          elseif ($SelectedModule -eq "data_research") {
+            Invoke-ProjectModule -ModuleName "data_research" -ScriptPath "src/data_research/app.py"
+          }
+          elseif ($SelectedModule -eq "visualization") {
+            Invoke-ProjectModule -ModuleName "visualization" -ScriptPath "src/visualization/app.py"
+          }
+          else {
+            Write-Host "Unknown module: $SelectedModule"
             exit 1
           }
 
@@ -86,8 +131,11 @@ jobs:
         if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.module == 'all' || github.event.inputs.module == matrix.module) }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.module }}-selfhosted
+          name: outputs-${{ matrix.module }}-selfhosted
+          if-no-files-found: warn
           path: |
-            artifacts/${{ matrix.module }}
-            reports/lab1/figures/*.png
+            data/raw/*.xlsx
             data/raw/*.csv
+            data/*.db
+            reports/lab1/*.json
+            reports/lab1/figures/*.png

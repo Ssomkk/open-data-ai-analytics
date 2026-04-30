@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Головна{% endblock %}
+
+{% block content %}
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<section class="hero" id="hero">
+  <div class="hero-badge">🇺🇦 Відкриті дані України</div>
+  <h1 class="hero-title">
+    Екологічна та радіаційна<br/>
+    <span class="gradient-text">обстановка АЕС</span>
+  </h1>
+  <p class="hero-subtitle">
+    Аналітична платформа для моніторингу викидів радіоактивних речовин
+    на атомних електростанціях України на основі відкритих державних даних.
+  </p>
+  <div class="hero-actions">
+    <a href="{{ url_for('data_page') }}"       class="btn btn-primary">Переглянути дані</a>
+    <a href="{{ url_for('visualizations_page') }}" class="btn btn-ghost">Графіки &rarr;</a>
+  </div>
+</section>
+
+<!-- ── Quick stats ────────────────────────────────────────────────────── -->
+{% if quality and quality.rows is defined %}
+<section class="section" id="stats">
+  <div class="stats-grid">
+    <div class="stat-card" id="stat-rows">
+      <div class="stat-icon">📋</div>
+      <div class="stat-value">{{ quality.rows }}</div>
+      <div class="stat-label">Записів у базі</div>
+    </div>
+    <div class="stat-card" id="stat-cols">
+      <div class="stat-icon">📐</div>
+      <div class="stat-value">{{ quality.columns }}</div>
+      <div class="stat-label">Показників</div>
+    </div>
+    <div class="stat-card" id="stat-missing">
+      <div class="stat-icon">🔍</div>
+      <div class="stat-value">{{ quality.missing_total }}</div>
+      <div class="stat-label">Пропущених значень</div>
+    </div>
+    <div class="stat-card" id="stat-dups">
+      <div class="stat-icon">📌</div>
+      <div class="stat-value">{{ quality.duplicates }}</div>
+      <div class="stat-label">Дублікатів</div>
+    </div>
+    <div class="stat-card" id="stat-plots">
+      <div class="stat-icon">📊</div>
+      <div class="stat-value">{{ figures|length }}</div>
+      <div class="stat-label">Графіків</div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ── Module cards ────────────────────────────────────────────────────── -->
+<section class="section" id="modules">
+  <div class="section-header">
+    <h2 class="section-title">Модулі аналізу</h2>
+    <p class="section-subtitle">Чотири незалежних мікросервіси, що разом формують повний пайплайн обробки даних.</p>
+  </div>
+  <div class="cards-grid">
+    <a href="{{ url_for('data_page') }}" class="module-card" id="card-data">
+      <div class="module-icon">📥</div>
+      <h3>Завантаження даних</h3>
+      <p>Автоматичне завантаження з порталу data.gov.ua. Завантажуються XLSX-файли та зберігаються у спільному томі.</p>
+      <span class="module-tag">data_load</span>
+    </a>
+    <a href="{{ url_for('quality_page') }}" class="module-card" id="card-quality">
+      <div class="module-icon">🔬</div>
+      <h3>Аналіз якості</h3>
+      <p>Перевірка пропусків, дублікатів, типів даних. Очищення та нормалізація набору. Формування очищеного CSV.</p>
+      <span class="module-tag">data_quality_analysis</span>
+    </a>
+    <a href="{{ url_for('research_page') }}" class="module-card" id="card-research">
+      <div class="module-icon">🧬</div>
+      <h3>Дослідження даних</h3>
+      <p>EDA: описові статистики, PCA, кореляційний аналіз, порівняння АЕС та динаміки викидів за роками.</p>
+      <span class="module-tag">data_research</span>
+    </a>
+    <a href="{{ url_for('visualizations_page') }}" class="module-card" id="card-viz">
+      <div class="module-icon">📈</div>
+      <h3>Візуалізація</h3>
+      <p>Генерація графіків: динаміка Cs-137 та Co-60, боксплоти, кореляційна матриця, розподіли.</p>
+      <span class="module-tag">visualization</span>
+    </a>
+  </div>
+</section>
+
+<!-- ── Preview of latest figures ─────────────────────────────────────── -->
+{% if figures %}
+<section class="section" id="preview">
+  <div class="section-header">
+    <h2 class="section-title">Останні графіки</h2>
+    <a href="{{ url_for('visualizations_page') }}" class="btn btn-sm btn-ghost">Переглянути всі →</a>
+  </div>
+  <div class="figures-preview-grid">
+    {% for fig in figures[:4] %}
+    <a href="{{ url_for('visualizations_page') }}" class="figure-preview-card" id="preview-fig-{{ loop.index }}">
+      <img src="/figures/{{ fig }}" alt="{{ fig }}" loading="lazy" />
+      <div class="figure-caption">{{ fig.replace('_', ' ').replace('.png','') }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

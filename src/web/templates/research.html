@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Дослідження даних{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🧬 Дослідження даних</h1>
+  <p class="page-subtitle">Описові статистики, розподіл по станціях та динаміка середніх викидів за роками.</p>
+</div>
+
+{% if report.error is defined %}
+<div class="alert alert-error" id="research-error">⚠️ {{ report.error }}</div>
+{% else %}
+
+<!-- ── Stations breakdown ─────────────────────────────────────────── -->
+{% if report.stations %}
+<div class="card" id="stations-card">
+  <div class="card-header">
+    <span class="card-title">Розподіл записів по АЕС</span>
+  </div>
+  <div class="stations-bars" id="stations-bars">
+    {% set total = report.stations.values()|sum %}
+    {% for station, cnt in report.stations.items() %}
+    <div class="station-row" id="station-row-{{ loop.index }}">
+      <span class="station-name">{{ station }}</span>
+      <div class="station-bar-wrap">
+        <div class="station-bar" style="width: {{ (cnt / total * 100)|round(1) }}%"></div>
+      </div>
+      <span class="station-count">{{ cnt }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Yearly averages ─────────────────────────────────────────────── -->
+{% if report.yearly_avg %}
+<div class="card" id="yearly-card">
+  <div class="card-header">
+    <span class="card-title">Середні значення по роках</span>
+  </div>
+  {% for col, yearly in report.yearly_avg.items() %}
+  <div class="yearly-section" id="yearly-{{ loop.index }}">
+    <h4 class="yearly-col-title">{{ col }}</h4>
+    <div class="yearly-bars">
+      {% set max_val = yearly.values()|max %}
+      {% for year, val in yearly.items() %}
+      <div class="yearly-row">
+        <span class="yearly-year">{{ year }}</span>
+        <div class="yearly-bar-wrap">
+          <div class="yearly-bar"
+               style="width: {% if max_val > 0 %}{{ (val / max_val * 100)|round(1) }}{% else %}0{% endif %}%"
+               title="{{ val }}">
+          </div>
+        </div>
+        <span class="yearly-val">{{ "%.4f"|format(val) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Descriptive statistics ──────────────────────────────────────── -->
+{% if report.describe %}
+<div class="card" id="describe-card">
+  <div class="card-header">
+    <span class="card-title">Описові статистики (числові стовпці)</span>
+  </div>
+  <div class="table-scroll">
+    <table class="data-table describe-table" id="describe-table">
+      <thead>
+        <tr>
+          <th>Показник</th>
+          {% for col in report.describe.keys() %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% set stats = ['count','mean','std','min','25%','50%','75%','max'] %}
+        {% for stat in stats %}
+        <tr>
+          <td><strong>{{ stat }}</strong></td>
+          {% for col, vals in report.describe.items() %}
+          <td>
+            {% if vals[stat] is defined %}
+              {% if vals[stat] is number %}
+                {{ "%.4f"|format(vals[stat]) }}
+              {% else %}
+                {{ vals[stat] }}
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
