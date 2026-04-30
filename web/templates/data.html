@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Завантажені дані{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">📊 Завантажені дані</h1>
+  <p class="page-subtitle">
+    Очищений набір даних про екологічну та радіаційну обстановку АЕС України
+    (перші 50 записів).
+  </p>
+</div>
+
+{% if data_cols %}
+<div class="card table-card" id="data-table-card">
+  <div class="card-header">
+    <span class="card-title">Таблиця даних</span>
+    <span class="badge">{{ data_rows|length }} рядків</span>
+  </div>
+  <div class="table-scroll">
+    <table class="data-table" id="data-table">
+      <thead>
+        <tr>
+          {% for col in data_cols %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data_rows %}
+        <tr>
+          {% for col in data_cols %}
+          <td>{{ row[col] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="info-strip" id="data-source-info">
+  <span>📁 Джерело:</span>
+  <a href="https://data.gov.ua/dataset/c445c6ea-f0c3-4167-abb1-5afb4a0e5499" target="_blank" rel="noopener">
+    data.gov.ua — Ядерна безпека Q4 2025
+  </a>
+  <span>|</span>
+  <span>Файл: <code>data/raw/clean_data.csv</code></span>
+</div>
+
+{% else %}
+<div class="empty-state" id="no-data-state">
+  <div class="empty-icon">📭</div>
+  <h3>Дані не знайдено</h3>
+  <p>Запустіть модуль <code>data_load</code> та <code>data_quality_analysis</code>, щоб підготувати дані.</p>
+</div>
+{% endif %}
+{% endblock %}
