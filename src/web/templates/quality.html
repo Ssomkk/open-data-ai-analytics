@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Аналіз якості{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🔍 Аналіз якості даних</h1>
+  <p class="page-subtitle">Результати перевірки коректності, повноти та типів даних набору nuclear_safety.</p>
+</div>
+
+{% if report.error is defined %}
+<div class="alert alert-error" id="quality-error">⚠️ {{ report.error }}</div>
+{% else %}
+
+<!-- ── Summary cards ──────────────────────────────────────────────── -->
+<div class="stats-grid" id="quality-stats">
+  <div class="stat-card stat-green" id="qstat-rows">
+    <div class="stat-icon">📋</div>
+    <div class="stat-value">{{ report.rows }}</div>
+    <div class="stat-label">Рядків</div>
+  </div>
+  <div class="stat-card stat-blue" id="qstat-cols">
+    <div class="stat-icon">📐</div>
+    <div class="stat-value">{{ report.columns }}</div>
+    <div class="stat-label">Стовпців</div>
+  </div>
+  <div class="stat-card {% if report.missing_total > 0 %}stat-yellow{% else %}stat-green{% endif %}" id="qstat-missing">
+    <div class="stat-icon">❓</div>
+    <div class="stat-value">{{ report.missing_total }}</div>
+    <div class="stat-label">Пропущених значень</div>
+  </div>
+  <div class="stat-card {% if report.duplicates > 0 %}stat-red{% else %}stat-green{% endif %}" id="qstat-dups">
+    <div class="stat-icon">🔁</div>
+    <div class="stat-value">{{ report.duplicates }}</div>
+    <div class="stat-label">Дублікатів</div>
+  </div>
+</div>
+
+<!-- ── Missing values per column ────────────────────────────────── -->
+{% if report.missing_values %}
+<div class="card" id="missing-card">
+  <div class="card-header">
+    <span class="card-title">Пропущені значення по стовпцях</span>
+  </div>
+  <div class="table-scroll">
+    <table class="data-table" id="missing-table">
+      <thead>
+        <tr><th>Стовпець</th><th>Пропущених</th><th>Статус</th></tr>
+      </thead>
+      <tbody>
+        {% for col, cnt in report.missing_values.items() %}
+        <tr>
+          <td><code>{{ col }}</code></td>
+          <td>{{ cnt }}</td>
+          <td>
+            {% if cnt == 0 %}
+              <span class="badge badge-green">OK</span>
+            {% elif cnt < 5 %}
+              <span class="badge badge-yellow">Мало</span>
+            {% else %}
+              <span class="badge badge-red">Багато</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Data types ─────────────────────────────────────────────────── -->
+{% if report.dtypes %}
+<div class="card" id="dtypes-card">
+  <div class="card-header">
+    <span class="card-title">Типи даних</span>
+  </div>
+  <div class="dtypes-grid" id="dtypes-grid">
+    {% for col, dtype in report.dtypes.items() %}
+    <div class="dtype-item" id="dtype-{{ loop.index }}">
+      <code class="dtype-col">{{ col }}</code>
+      <span class="dtype-badge
+        {% if 'int' in dtype or 'float' in dtype %}dtype-num
+        {% elif 'object' in dtype %}dtype-str
+        {% else %}dtype-other{% endif %}">
+        {{ dtype }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

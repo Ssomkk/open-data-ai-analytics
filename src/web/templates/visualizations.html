@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Візуалізація{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">📈 Візуалізація результатів</h1>
+  <p class="page-subtitle">Усі згенеровані графіки та діаграми аналізу радіаційних даних АЕС.</p>
+</div>
+
+{% if figures %}
+
+<!-- ── Filter bar ─────────────────────────────────────────────────── -->
+<div class="filter-bar" id="filter-bar">
+  <button class="filter-btn active" id="filter-all" data-filter="all">Усі ({{ figures|length }})</button>
+  <button class="filter-btn" id="filter-emission" data-filter="emission">Викиди</button>
+  <button class="filter-btn" id="filter-irg"      data-filter="irg">IRG</button>
+  <button class="filter-btn" id="filter-corr"     data-filter="correlation">Кореляція</button>
+  <button class="filter-btn" id="filter-pca"      data-filter="pca">PCA</button>
+  <button class="filter-btn" id="filter-dist"     data-filter="distributions">Розподіли</button>
+</div>
+
+<!-- ── Figures grid ───────────────────────────────────────────────── -->
+<div class="figures-grid" id="figures-grid">
+  {% for fig in figures %}
+  <div class="figure-card" id="fig-card-{{ loop.index }}" data-name="{{ fig }}">
+    <div class="figure-img-wrap">
+      <img
+        src="/figures/{{ fig }}"
+        alt="{{ fig }}"
+        loading="lazy"
+        class="figure-img"
+      />
+      <div class="figure-overlay">
+        <button class="btn-lightbox" data-src="/figures/{{ fig }}" data-caption="{{ fig.replace('_', ' ').replace('.png','') }}" aria-label="Відкрити {{ fig }}">🔍 Збільшити</button>
+      </div>
+    </div>
+    <div class="figure-footer">
+      <span class="figure-name">{{ fig.replace('_', ' ').replace('.png','') }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ── Lightbox ───────────────────────────────────────────────────── -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Закрити">✕</button>
+  <div class="lightbox-inner">
+    <img id="lightboxImg" src="" alt="" />
+    <p  id="lightboxCaption"></p>
+  </div>
+</div>
+
+{% else %}
+<div class="empty-state" id="no-figures-state">
+  <div class="empty-icon">🖼️</div>
+  <h3>Графіки ще не згенеровані</h3>
+  <p>Запустіть модулі <code>data_research</code> та <code>visualization</code>, щоб отримати графіки.</p>
+</div>
+{% endif %}
+{% endblock %}

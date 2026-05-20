@@ -6,3 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 data/raw
+
+db/nuclear_safety.db
+
+db/identifier.sqlite
