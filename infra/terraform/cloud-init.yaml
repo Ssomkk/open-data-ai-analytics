@@ -18,7 +18,7 @@ runcmd:
   - systemctl start docker
 
   # Завантаження проєкту
-  - git clone https://github.com/Ssomkk/open-data-ai-analytics.git /home/azureuser/app
+  - git clone b feature/iac https://github.com/Ssomkk/open-data-ai-analytics.git /home/azureuser/app
 
   # Запуск docker-compose
 #  - cd /home/azureuser/app/docker

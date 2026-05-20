@@ -1,9 +1,9 @@
 variable "location" {
   description = "Azure resource region"
-  default     = "East US"
+  default     = "France Central"
 }
 
 variable "prefix" {
   description = "Resource name prefix"
-  default     = "lab4-csci"
+  default     = "lab4-iac"
 }
