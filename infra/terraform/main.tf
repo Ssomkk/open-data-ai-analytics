@@ -1,124 +1,78 @@
-terraform {
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
-    }
+provider "aws" {
+  region = var.region
+}
+
+# 1. Network (VPC) and Subnetwork (Subnet)
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+}
+
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true # Automatically issues public IP
+}
+
+# In AWS the Internet Gateway is needed so the server has Internet access
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
   }
 }
 
-provider "azurerm" {
-  features {}
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-# Група ресурсів
-resource "azurerm_resource_group" "rg" {
-  name     = "${var.prefix}-rg"
-  location = var.location
-}
+# 2. Security Group - NSG analogy
+resource "aws_security_group" "web_sg" {
+  name        = "${var.prefix}-sg"
+  description = "Allow SSH and HTTP"
+  vpc_id      = aws_vpc.main.id
 
-# Віртуальна мережа
-resource "azurerm_virtual_network" "vnet" {
-  name                = "${var.prefix}-vnet"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-}
-
-# Підмережа (Subnet)
-resource "azurerm_subnet" "subnet" {
-  name                 = "${var.prefix}-subnet"
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
-
-# Публічна IP-адреса
-resource "azurerm_public_ip" "public_ip" {
-  name                = "${var.prefix}-public-ip"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
-
-# Група безпеки мережі
-resource "azurerm_network_security_group" "nsg" {
-  name                = "${var.prefix}-nsg"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+  # Open port 22 for SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  security_rule {
-    name                       = "HTTP"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "5000"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+  # Open port 5000 for web app
+  ingress {
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow server to access Internet (downloading Docker etc)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-# Мережевий інтерфейс
-resource "azurerm_network_interface" "nic" {
-  name                = "${var.prefix}-nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+# 3. Server (EC2 Instance)
+resource "aws_instance" "web" {
+  ami           = "ami-04f76ebf532020fa0" # Ubuntu 22.04 in region eu-central-1
+  instance_type = "t2.micro"              # AWS Free Tier
+  subnet_id     = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.public_ip.id
+  # cloud-init transfer
+  user_data = file("cloud-init.yaml")
+
+  tags = {
+    Name = "${var.prefix}-vm"
   }
-}
-
-# Прив'язка NSG до NIC
-resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
-  network_interface_id      = azurerm_network_interface.nic.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
-}
-
-# Сама віртуальна машина (Linux)
-resource "azurerm_linux_virtual_machine" "vm" {
-  name                = "${var.prefix}-vm"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = "Standard_B1s"
-  admin_username      = "azureuser"
-  admin_password                  = "Password12345!"
-  disable_password_authentication = false
-
-  network_interface_ids = [
-    azurerm_network_interface.nic.id,
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts"
-    version   = "latest"
-  }
-
-  # Передача cloud-init скрипта для автоматичного налаштування
-  custom_data = filebase64("cloud-init.yaml")
 }

@@ -9,7 +9,7 @@ packages:
   - git
 
 runcmd:
-  # Встановлення Docker
+  # Download Docker and Compose plugin
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
   - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   - apt-get update -y
@@ -17,9 +17,9 @@ runcmd:
   - systemctl enable docker
   - systemctl start docker
 
-  # Завантаження проєкту
-  - git clone -b feature/iac https://github.com/Ssomkk/open-data-ai-analytics.git /home/azureuser/app
+  # Download project
+  - git clone -b feature/iac https://github.com/Ssomkk/open-data-ai-analytics.git /home/ubuntu/app
 
-  # Запуск docker-compose
-#  - cd /home/azureuser/app/docker
+  # Launch docker-compose
+  - cd /home/ubuntu/app
   - docker compose up -d
