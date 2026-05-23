@@ -9,6 +9,14 @@ packages:
   - git
 
 runcmd:
+
+  # Створюємо 4 ГБ віртуальної оперативної пам'яті (Swap)
+  - fallocate -l 4G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
   # Download Docker and Compose plugin
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
   - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
