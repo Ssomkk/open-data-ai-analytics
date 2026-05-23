@@ -2,6 +2,17 @@ provider "aws" {
   region = var.region
 }
 
+# Динамічний пошук найсвіжішого образу Ubuntu 22.04 для твого поточного регіону
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Офіційний акаунт Canonical (творці Ubuntu)
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+}
+
 # 1. Network (VPC) and Subnetwork (Subnet)
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
@@ -64,10 +75,16 @@ resource "aws_security_group" "web_sg" {
 
 # 3. Server (EC2 Instance)
 resource "aws_instance" "web" {
-  ami           = "ami-04f76ebf532020fa0" # Ubuntu 22.04 in region eu-central-1
-  instance_type = "t2.micro"              # AWS Free Tier
+  ami           = data.aws_ami.ubuntu.id  # Тепер Terraform сам підставить правильний ID!
+  instance_type = "t3.micro"              # Безкоштовний сервер для регіону eu-north-1
   subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+
+root_block_device {
+  volume_size           = 30
+  volume_type           = "gp3"
+  delete_on_termination = true # Диск видалиться разом із сервером
+}
 
   # cloud-init transfer
   user_data = file("cloud-init.yaml")
