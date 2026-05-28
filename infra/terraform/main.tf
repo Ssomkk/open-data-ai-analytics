@@ -80,6 +80,20 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 30500
+    to_port     = 30500
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 30080
+    to_port     = 30080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Allow server to access Internet (downloading Docker etc)
   egress {
     from_port   = 0
@@ -92,7 +106,7 @@ resource "aws_security_group" "web_sg" {
 # 3. Server (EC2 Instance)
 resource "aws_instance" "web" {
   ami           = data.aws_ami.ubuntu.id  # Тепер Terraform сам підставить правильний ID!
-  instance_type = "t3.micro"              # Безкоштовний сервер для регіону eu-north-1
+  instance_type = "m7i-flex.large"              # Безкоштовний сервер для регіону eu-north-1
   subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 

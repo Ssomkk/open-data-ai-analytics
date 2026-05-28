@@ -5,30 +5,45 @@ on:
     branches: ["main"]
     paths:
       - "src/web/**"
+      - "Dockerfile"
       - ".github/workflows/docker-publish.yml"
-  workflow_dispatch:
+
+env:
+  IMAGE_NAME: open-data-web
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # потрібен token щоб мати змогу зробити push назад в репо
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push web image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: src/web
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/open-data-ai-analytics-web:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      # Оновлює тег образу в deployment.yaml → Argo CD бачить зміну і деплоїть
+      - name: Update image tag in deployment.yaml
+        run: |
+          NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          sed -i "s|image: .*/open-data-web:.*|image: ${NEW_IMAGE}|" gitops/app/deployment.yaml
+          git config user.email "github-actions@github.com"
+          git config user.name "GitHub Actions"
+          git add gitops/app/deployment.yaml
+          git diff --staged --quiet || git commit -m "ci: update web image to ${{ github.sha }}"
+          git push
